@@ -225,7 +225,10 @@ export const parse = (tokens: Token[], rawStrings?: string[]): RootNode => {
           pos++;
           while (tokens[pos]?.type === WHITESPACE_TOKEN) pos++;
           const nameToken = tokens[pos];
-          const closeToken = tokens[++pos];
+          pos++;
+          // Skip whitespace between the closing name and '>'
+          while (tokens[pos]?.type === WHITESPACE_TOKEN) pos++;
+          const closeToken = tokens[pos];
           const currentParent = stack[stack.length - 1] as ElementNode;
           if (
             stack.length > 1 &&
@@ -299,11 +302,16 @@ export const parse = (tokens: Token[], rawStrings?: string[]): RootNode => {
               }
             } else if (attrToken.type === PROP_NAME_TOKEN) {
               const name = attrToken.value;
-              const next = tokens[pos + 1];
+              // Skip whitespace between the prop name and '='
+              let ni = pos + 1;
+              while (tokens[ni]?.type === WHITESPACE_TOKEN) ni++;
+              const next = tokens[ni];
 
               if (next?.type === EQUALS_TOKEN) {
                 const equalsToken = next;
-                pos += 2; // Consume name and '='
+                pos = ni + 1; // Consume name, whitespace and '='
+                // Skip whitespace between '=' and the value
+                while (tokens[pos]?.type === WHITESPACE_TOKEN) pos++;
                 const valToken = tokens[pos];
                 if (valToken.type === EXPRESSION_TOKEN) {
                   node.props.push({

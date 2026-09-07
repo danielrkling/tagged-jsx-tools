@@ -9,28 +9,13 @@
     "packages/prettier-plugin"
   ],
   "scripts": {
-    "build:parse": "npm run build --workspace=@tagged-jsx/parse",
-    "build:transform": "npm run build --workspace=@tagged-jsx/transform",
-    "build:ts-plugin": "npm run build --workspace=@tagged-jsx/ts-plugin",
-    "build:prettier-plugin": "npm run build --workspace=@tagged-jsx/prettier-plugin",
-    "build:vs-code": "npm run build --workspace=tagged-jsx-vscode",
+    "build": "npm run build --workspaces --if-present && npm run build:vs-code",
+    "build:vs-code": "npm run sync:ts-plugin && cd packages/vs-code && npm run build",
     "watch:ts-plugin": "npm run watch --workspace=@tagged-jsx/ts-plugin",
-    "watch:vs-code": "npm run watch --workspace=tagged-jsx-vscode",
-    "build": "npm run build:ts-plugin && npm run build:vs-code",
+    "test": "npm test --workspaces --if-present",
     "sync:ts-plugin": "node scripts/sync-plugin.js",
-    "prebuild:vs-code": "npm run sync:ts-plugin",
-    "pretest:vs-code": "npm run sync:ts-plugin",
-    "test:vs-code": "npm run test --workspace=tagged-jsx-vscode",
-    "test:web": "cd packages/vs-code && npm run test:web",
-    "publish:parse": "npm publish --workspace=@tagged-jsx/parse --access public",
-    "publish:transform": "npm publish --workspace=@tagged-jsx/transform --access public",
-    "publish:ts-plugin": "npm publish --workspace=@tagged-jsx/ts-plugin --access public",
-    "publish:prettier-plugin": "npm publish --workspace=@tagged-jsx/prettier-plugin --access public",
-    "publish:vscode": "cd packages/vs-code && npx vsce publish --no-dependencies",
-    "publish:all": "npm run publish:parse && npm run publish:transform && npm run publish:ts-plugin && npm run publish:prettier-plugin && npm run publish:vscode",
-    "vsce:package": "cd packages/vs-code && npx vsce package --no-dependencies",
-    "vsce:publish": "cd packages/vs-code && npx vsce publish --no-dependencies",
-    "package:vscode": "cd packages/vs-code && npx vsce package --no-dependencies"
+    "publish:all": "npm publish --workspaces --access public && npm run publish:vscode",
+    "publish:vscode": "npm run sync:ts-plugin && cd packages/vs-code && npx vsce publish --no-dependencies"
   },
   "dependencies": {
     "@xml-tools/parser": "^1.0.11"
