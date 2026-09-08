@@ -71,6 +71,16 @@ export function createTaggedTransformer(
     return ts.forEachChild(node, findFirstJSXElement);
   }
 
+  function getAttributeName(
+    name: tsModule.Identifier | tsModule.JsxNamespacedName,
+  ): string {
+    if (ts.isIdentifier(name)) {
+      return name.text;
+    }
+    // Namespaced attribute names, e.g. xlink:href
+    return `${name.namespace.text}:${name.name.text}`;
+  }
+
   function convertAttributes(
     attributes: tsModule.JsxAttributes,
     sourceFile: tsModule.SourceFile,
@@ -107,7 +117,7 @@ export function createTaggedTransformer(
       }
 
       if (ts.isJsxAttribute(attr)) {
-        const name = (attr.name as any).text || "";
+        const name = getAttributeName(attr.name);
         const value = attr.initializer;
 
         if (value) {
@@ -224,11 +234,15 @@ export function createTaggedTransformer(
     return result;
   }
 
-  function getTagNameText(tagName: tsModule.JsxTagNameExpression): string {
+  function getTagNameText(
+    tagName: tsModule.JsxTagNameExpression,
+    sourceFile: tsModule.SourceFile,
+  ): string {
     if (ts.isIdentifier(tagName)) {
       return tagName.text;
     }
-    return "";
+    // Member expressions (<Form.Field />) and namespaced names (<svg:use />)
+    return tagName.getText(sourceFile);
   }
 
   function isComponent(tagName: tsModule.JsxTagNameExpression): boolean {
@@ -236,7 +250,10 @@ export function createTaggedTransformer(
       const firstChar = tagName.text.charAt(0);
       return firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
     }
-    return false;
+    // Member expressions are component references in JSX and must be emitted as
+    // ${...} so the runtime can evaluate them. Namespaced names are not JS
+    // expressions and are kept as literal tag names.
+    return ts.isPropertyAccessExpression(tagName);
   }
 
   function convertJsxElementToString(
@@ -244,7 +261,7 @@ export function createTaggedTransformer(
     sourceFile: tsModule.SourceFile,
     callbacks?: TransformerCallbacks,
   ): string {
-    const tagName = getTagNameText(node.openingElement.tagName);
+    const tagName = getTagNameText(node.openingElement.tagName, sourceFile);
     const openTagName = isComponent(node.openingElement.tagName)
       ? "${" + tagName + "}"
       : tagName;
@@ -254,7 +271,7 @@ export function createTaggedTransformer(
       callbacks,
     );
 
-    const closeTagName = getTagNameText(node.closingElement.tagName);
+    const closeTagName = getTagNameText(node.closingElement.tagName, sourceFile);
     const closeTag = isComponent(node.closingElement.tagName)
       ? "${" + closeTagName + "}"
       : closeTagName;
@@ -269,7 +286,7 @@ export function createTaggedTransformer(
     sourceFile: tsModule.SourceFile,
     callbacks?: TransformerCallbacks,
   ): string {
-    const tagName = getTagNameText(node.tagName);
+    const tagName = getTagNameText(node.tagName, sourceFile);
     const tagStr = isComponent(node.tagName)
       ? "${" + tagName + "}"
       : tagName;

@@ -522,6 +522,14 @@ describe("parse - edge cases", () => {
     expect(el.props[0].name).toBe("data-value");
   });
 
+  it("should parse unicode tag names", () => {
+    const result = parseTemplate`<日本語 data-value="test"/>`;
+
+    const el = result.children[0] as any;
+    expect(el.name).toBe("日本語");
+    expect(el.props[0].name).toBe("data-value");
+  });
+
   it("should handle self-closing with attributes", () => {
     const result = parseTemplate`<img src="test.png" alt="test" loading="lazy"/>`;
 

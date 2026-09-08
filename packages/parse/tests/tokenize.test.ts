@@ -830,3 +830,55 @@ describe("comments handling", () => {
     ]);
   });
 });
+
+describe("unicode names", () => {
+  it("should tokenize unicode tag names", () => {
+    const tokens = tokenizeTemplate`<日本語/>`;
+
+    expect(tokens).toEqual([
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: TAG_NAME_TOKEN, value: "日本語", segment: 0, start: 1, end: 4 },
+      { type: SLASH_TOKEN, segment: 0, start: 4, end: 5 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 5, end: 6 },
+    ]);
+  });
+
+  it("should tokenize accented tag names", () => {
+    const tokens = tokenize(["<\u00e9l\u00e9ment />"]) as TagNameToken[];
+
+    expect(tokens.map((t) => t.type)).toEqual([
+      OPEN_TAG_TOKEN,
+      TAG_NAME_TOKEN,
+      WHITESPACE_TOKEN,
+      SLASH_TOKEN,
+      CLOSE_TAG_TOKEN,
+    ]);
+    expect((tokens[1] as TagNameToken).value).toBe("\u00e9l\u00e9ment");
+  });
+
+  it("should tokenize names with combining marks as one token", () => {
+    const tokens = tokenize(["<e\u0301lement />"]);
+
+    const name = tokens.find((t) => t.type === TAG_NAME_TOKEN) as TagNameToken;
+    expect(name.value).toBe("e\u0301lement");
+  });
+
+  it("should tokenize unicode prop names", () => {
+    const tokens = tokenize(["<div \u6570\u636e=\"x\"/>"]) as PropNameToken[];
+
+    const name = tokens.find((t) => t.type === PROP_NAME_TOKEN) as PropNameToken;
+    expect(name.value).toBe("\u6570\u636e");
+  });
+
+  it("should not absorb surrogate pairs into names", () => {
+    const tokens = tokenize(["<\ud83d\ude00/>"]) as any[];
+
+    expect(tokens.some((t) => t.type === UNEXPECTED_CHARACTER_TOKEN)).toBe(true);
+  });
+
+  it("should keep rejecting ascii punctuation in names", () => {
+    const tokens = tokenize(["<div @click/>"]) as any[];
+
+    expect(tokens.some((t) => t.type === UNEXPECTED_CHARACTER_TOKEN)).toBe(true);
+  });
+});

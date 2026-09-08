@@ -13,21 +13,48 @@ export const COMMENT_START_TOKEN = "COMMENT_START";
 export const COMMENT_END_TOKEN = "COMMENT_END";
 export const UNEXPECTED_CHARACTER_TOKEN = "UNEXPECTED_CHARACTER";
 
+// Name character classes for tag and prop names, based on XML 1.0 (5th ed.)
+// NameStartChar/NameChar restricted to the BMP so surrogate pairs are never
+// absorbed (matching JSX identifiers, which exclude astral/emoji code points).
+// Continuation additionally allows '.' (member-style names), '-' (custom
+// elements) and ':' (namespaced names like svg:rect).
 const isIdentifierChar = (code: number): boolean => {
   return (
     isIdentifierStart(code) ||
-    (code >= 48 && code <= 58) ||
-    code === 46 ||
-    code === 45
+    (code >= 48 && code <= 57) || // 0-9
+    code === 46 || // .
+    code === 45 || // -
+    code === 58 || // :
+    code === 183 || // ·
+    (code >= 0x300 && code <= 0x36f) || // combining diacritical marks
+    (code >= 0x203f && code <= 0x2040) // undertie / character tie
   );
 };
 
 const isIdentifierStart = (code: number): boolean => {
   return (
-    (code >= 65 && code <= 90) ||
-    (code >= 97 && code <= 122) ||
-    code === 95 ||
-    code === 36
+    (code >= 65 && code <= 90) || // A-Z
+    (code >= 97 && code <= 122) || // a-z
+    code === 95 || // _
+    code === 36 || // $
+    isUnicodeNameStart(code)
+  );
+};
+
+// XML NameStartChar ranges that live on the basic multilingual plane.
+const isUnicodeNameStart = (code: number): boolean => {
+  return (
+    (code >= 0xc0 && code <= 0xd6) ||
+    (code >= 0xd8 && code <= 0xf6) ||
+    (code >= 0xf8 && code <= 0x2ff) ||
+    (code >= 0x370 && code <= 0x37d) ||
+    (code >= 0x37f && code <= 0x1fff) ||
+    (code >= 0x200c && code <= 0x200d) ||
+    (code >= 0x2070 && code <= 0x218f) ||
+    (code >= 0x2c00 && code <= 0x2fef) ||
+    (code >= 0x3001 && code <= 0xd7ff) ||
+    (code >= 0xf900 && code <= 0xfdcf) ||
+    (code >= 0xfdf0 && code <= 0xfffd)
   );
 };
 

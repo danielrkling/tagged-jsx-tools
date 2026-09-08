@@ -89,6 +89,53 @@ describe("one-way transforms", () => {
     expect(result.trim()).toBe(expected.trim());
   });
 
+  it("components on properties", () => {
+    const jsx = "<Form.Field name=\"email\" />";
+    const expected = "jsx`<${Form.Field} name=\"email\" />`";
+    const result = toTagged(jsx).code;
+    expect(result.trim()).toBe(expected.trim());
+  });
+
+  it("components on properties with children round-trip", () => {
+    const jsx = "<Form.Field>\n  <input />\n</Form.Field>";
+    const expected = "jsx`<${Form.Field}>\n  <input />\n</${Form.Field}>`";
+    const result = toTagged(jsx).code;
+    expect(result.trim()).toBe(expected.trim());
+    expect(toJsx(result).code).toBe(jsx);
+  });
+
+  it("namespaced tags stay literal", () => {
+    const jsx = "<svg:use href=\"icon.svg\" />";
+    const expected = "jsx`<svg:use href=\"icon.svg\" />`";
+    const result = toTagged(jsx).code;
+    expect(result.trim()).toBe(expected.trim());
+  });
+
+  it("unicode tag names round-trip", () => {
+    const jsx = "<日本語 name=\"テスト\" />";
+    const result = toTagged(jsx).code;
+    expect(result.trim()).toBe("jsx`<日本語 name=\"テスト\" />`");
+    expect(toJsx(result).code).toBe(jsx);
+  });
+
+  it("namespaced attributes stay literal", () => {
+    const jsx = "<svg xlink:href=\"icon.svg\" xlink:required />";
+    const result = toTagged(jsx).code;
+    expect(result.trim()).toBe("jsx`<svg xlink:href=\"icon.svg\" xlink:required />`");
+  });
+
+  it("namespaced attributes round-trip", () => {
+    const jsx = "<svg xlink:href=\"icon.svg\" />";
+    const result = toTagged(jsx).code;
+    expect(toJsx(result).code).toBe(jsx);
+  });
+
+  it("namespaced expression attributes", () => {
+    const jsx = "<svg xlink:href={url} />";
+    const result = toTagged(jsx).code;
+    expect(result.trim()).toBe("jsx`<svg xlink:href=${url} />`");
+  });
+
   it("empty expressions", () => {
     const jsx = "<div>{}</div>";
     const expected = "jsx`<div></div>`";
@@ -206,5 +253,18 @@ describe("transform callbacks", () => {
     });
 
     expect(capturedPropName).toBe("value");
+  });
+
+  it("should provide namespaced propName in callbacks", () => {
+    let capturedPropName = "";
+    toTagged("<svg xlink:href={v()} />", {
+      toTagged: ({ expression, propName, sourceCode }) => {
+        capturedPropName = propName || "";
+        const text = sourceCode.slice(expression.getStart(), expression.getEnd());
+        return text;
+      }
+    });
+
+    expect(capturedPropName).toBe("xlink:href");
   });
 });
