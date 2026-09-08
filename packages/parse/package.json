@@ -1,6 +1,6 @@
 {
   "name": "@tagged-jsx/parse",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A JSX parser for JavaScript tagged template literals",
   "type": "module",
   "main": "dist/index.mjs",
@@ -29,7 +29,9 @@
   ],
   "author": "",
   "license": "MIT",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@types/node": "^20.10.6",
     "@vitest/coverage-v8": "^1.1.0",
