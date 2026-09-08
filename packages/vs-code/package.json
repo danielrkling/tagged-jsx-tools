@@ -169,7 +169,7 @@
   },
   "scripts": {
     "build:web": "esbuild ./src/extension.web.ts --bundle --format=cjs --outfile=./dist/web/extension.js --external:vscode --platform=browser --minify",
-    "build": "esbuild ./src/extension.ts --bundle --format=cjs --outfile=./dist/extension.js --external:vscode --external:prettier --platform=node --minify",
+    "build": "esbuild ./src/extension.ts --bundle --format=cjs --outfile=./dist/extension.js --external:vscode --platform=node --minify",
     "watch:web": "esbuild ./src/extension.web.ts --bundle --format=cjs --outfile=./dist/web/extension.js --external:vscode --platform=browser --watch",
     "watch": "esbuild ./src/extension.ts --bundle --format=cjs --outfile=./dist/extension.js --external:vscode --external:prettier --external:@tagged-jsx/prettier-plugin --platform=node --watch",
     "test": "vitest run",
