@@ -1,13 +1,15 @@
 import type * as tsModule from "typescript";
 import { computeMappings } from "./mappings";
 import type { MappingResult } from "./mappings";
-import type { TransformerCallbacks, ToTaggedCallbackOptions } from "./types";
+import type { TransformerCallbacks, ToTaggedCallbackOptions, TransformOptions } from "./types";
 
 export function createTaggedTransformer(
   tag: string,
   ts: typeof tsModule,
-  globalCallbacks?: TransformerCallbacks
+  globalCallbacks?: TransformerCallbacks,
+  options?: TransformOptions
 ) {
+  const registeredComponents = options?.registeredComponents ?? [];
   function toTagged(code: string, callbacks?: TransformerCallbacks): string {
     const activeCallbacks = callbacks || globalCallbacks;
     let result = code;
@@ -136,7 +138,11 @@ export function createTaggedTransformer(
               result += `${whitespace}${name}=\${${exprText}}`;
             }
           } else if (ts.isStringLiteral(value)) {
-            result += `${whitespace}${name}="${value.text}"`;
+            // Raw JSX attribute strings cannot contain both quote characters,
+            // so picking the quote absent from the value is always safe.
+            const text = escapeTemplateText(value.text);
+            const quote = text.includes('"') ? "'" : '"';
+            result += `${whitespace}${name}=${quote}${text}${quote}`;
           }
         } else {
           result += `${whitespace}${name}`;
@@ -187,12 +193,12 @@ export function createTaggedTransformer(
       const fullText = sourceFile.text.slice(child.getStart(), child.getEnd());
       const inner = fullText.slice(1, -1).trim();
       if (inner.startsWith("/*") && inner.endsWith("*/")) {
-        const content = inner.slice(2, -2).trim();
-        return content ? `<!-- ${content} -->` : "<!---->";
+        const content = escapeTemplateText(inner.slice(2, -2).trim());
+        return content ? `{/* ${content} */}` : "{/**/}";
       }
       return "";
     } else if (ts.isJsxText(child)) {
-      return child.getText(sourceFile);
+      return escapeTemplateText(child.getText(sourceFile));
     }
 
     return "";
@@ -245,10 +251,41 @@ export function createTaggedTransformer(
     return tagName.getText(sourceFile);
   }
 
+  // Escapes text emitted into the template literal so template cooking
+  // restores the exact source characters (backslash, backtick and ${ would
+  // otherwise be cooked/interpolated).
+  function escapeTemplateText(text: string): string {
+    return text
+      .replace(/\\/g, "\\\\")
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${");
+  }
+
+  // Mirrors TypeScript's isIntrinsicJsxName: a tag is intrinsic iff it starts
+  // with a lowercase ASCII letter or contains a dash. Everything else is a
+  // component reference and must be emitted as ${...} for the runtime to
+  // resolve it.
+  function isIntrinsicJsxName(name: string): boolean {
+    const ch = name.charCodeAt(0);
+    return (ch >= 97 && ch <= 122) || name.includes("-");
+  }
+
+  function formatTagName(
+    tagName: tsModule.JsxTagNameExpression,
+    sourceFile: tsModule.SourceFile,
+  ): string {
+    const text = getTagNameText(tagName, sourceFile);
+    // Registered components are emitted as literal tag names so the runtime
+    // can resolve them from its component registry.
+    if (registeredComponents.includes(text)) {
+      return text;
+    }
+    return isComponent(tagName) ? "${" + text + "}" : text;
+  }
+
   function isComponent(tagName: tsModule.JsxTagNameExpression): boolean {
     if (ts.isIdentifier(tagName)) {
-      const firstChar = tagName.text.charAt(0);
-      return firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase();
+      return !isIntrinsicJsxName(tagName.text);
     }
     // Member expressions are component references in JSX and must be emitted as
     // ${...} so the runtime can evaluate them. Namespaced names are not JS
@@ -261,20 +298,14 @@ export function createTaggedTransformer(
     sourceFile: tsModule.SourceFile,
     callbacks?: TransformerCallbacks,
   ): string {
-    const tagName = getTagNameText(node.openingElement.tagName, sourceFile);
-    const openTagName = isComponent(node.openingElement.tagName)
-      ? "${" + tagName + "}"
-      : tagName;
+    const openTagName = formatTagName(node.openingElement.tagName, sourceFile);
     const attributes = convertAttributes(
       node.openingElement.attributes,
       sourceFile,
       callbacks,
     );
 
-    const closeTagName = getTagNameText(node.closingElement.tagName, sourceFile);
-    const closeTag = isComponent(node.closingElement.tagName)
-      ? "${" + closeTagName + "}"
-      : closeTagName;
+    const closeTag = formatTagName(node.closingElement.tagName, sourceFile);
 
     const children = convertJsxElementChildren(node, sourceFile, callbacks);
 
@@ -286,10 +317,7 @@ export function createTaggedTransformer(
     sourceFile: tsModule.SourceFile,
     callbacks?: TransformerCallbacks,
   ): string {
-    const tagName = getTagNameText(node.tagName, sourceFile);
-    const tagStr = isComponent(node.tagName)
-      ? "${" + tagName + "}"
-      : tagName;
+    const tagStr = formatTagName(node.tagName, sourceFile);
     const attributes = convertAttributes(node.attributes, sourceFile, callbacks);
 
     // Preserve whitespace between last attribute and />

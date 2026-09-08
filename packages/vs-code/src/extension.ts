@@ -1,5 +1,6 @@
 import { createExpressionTransformCallbacks, createJsxTransformer, createTaggedTransformer } from "@tagged-jsx/transform";
 import { createPlugin } from "@tagged-jsx/prettier-plugin";
+import { generateGrammar } from "./generate-grammar";
 import vscode from "vscode";
 import ts from "typescript";
 
@@ -20,124 +21,6 @@ async function readFile(path: string): Promise<string> {
 }
 
 const GRAMMAR_FILENAME = "lit-jsx-generated.json";
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function generateGrammar(tags: string[]): string {
-  const patterns: object[] = [];
-
-  for (const tag of tags) {
-    patterns.push({
-      contentName: "meta.embedded.block.jsx",
-      begin: "(?i)\\b(" + escapeRegex(tag) + ")(\x60)",
-      beginCaptures: {
-        "1": {
-          name: "entity.name.function.tagged-template.js",
-        },
-        "2": {
-          name: "punctuation.definition.string.template.begin.js",
-        },
-      },
-      end: "\x60",
-      endCaptures: {
-        "0": {
-          name: "punctuation.definition.string.template.end.js",
-        },
-      },
-      patterns: [
-        {
-          include: "source.ts#template-substitution-element",
-        },
-        {
-          include: "text.jsx",
-        },
-      ],
-    });
-
-    patterns.push({
-      contentName: "meta.embedded.block.jsx",
-      begin: "(?i)\\b(\\w+)\\.(" + escapeRegex(tag) + ")(\x60)",
-      beginCaptures: {
-        "1": {
-          name: "variable.js",
-        },
-        "2": {
-          name: "entity.name.function.tagged-template.js",
-        },
-        "3": {
-          name: "punctuation.definition.string.template.begin.js",
-        },
-      },
-      end: "\x60",
-      endCaptures: {
-        "0": {
-          name: "punctuation.definition.string.template.end.js",
-        },
-      },
-      patterns: [
-        {
-          include: "source.ts#template-substitution-element",
-        },
-        {
-          include: "text.jsx",
-        },
-      ],
-    });
-
-    patterns.push({
-      contentName: "meta.embedded.block.jsx",
-      begin: "(?i)(\\w+\\([^)]*\\))\\.(" + escapeRegex(tag) + ")(\x60)",
-      beginCaptures: {
-        "1": {
-          name: "entity.name.function.js",
-        },
-        "2": {
-          name: "entity.name.function.tagged-template.js",
-        },
-        "3": {
-          name: "punctuation.definition.string.template.begin.js",
-        },
-      },
-      end: "\x60",
-      endCaptures: {
-        "0": {
-          name: "punctuation.definition.string.template.end.js",
-        },
-      },
-      patterns: [
-        {
-          include: "source.ts#template-substitution-element",
-        },
-        {
-          include: "text.jsx",
-        },
-      ],
-    });
-  }
-
-  const grammar = {
-    $schema: "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-    fileTypes: [],
-    injectionSelector:
-      "L:source.js -comment -(string -meta.embedded), L:source.js.jsx -comment -(string -meta.embedded), L:source.jsx -comment -(string -meta.embedded), L:source.ts -comment -(string -meta.embedded), L:source.tsx -comment -(string -meta.embedded)",
-    injections: {
-      "L:source": {
-        patterns: [
-          {
-            match: "<",
-            name: "invalid.illegal.bad-angle-bracket.jsx",
-          },
-        ],
-      },
-    },
-    patterns,
-    scopeName: "text.lit-jsx",
-  };
-
-  return JSON.stringify(grammar, null, 2);
-}
 
 async function regenerateGrammar(context: vscode.ExtensionContext): Promise<void> {
   const config = vscode.workspace.getConfiguration("tagged-jsx");
@@ -285,6 +168,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const useCallbacks = config.get<boolean>("useCallbacks", false);
     const tags = config.get<string[]>("customTags", ["jsx", "html"]);
     const preferredTag = config.get<string>("preferredTag", "jsx");
+    const registeredComponents = config.get<string[]>("registeredComponents", []);
 
     const toJSXTransform = createJsxTransformer(
       tags,
@@ -296,6 +180,7 @@ export async function activate(context: vscode.ExtensionContext) {
       preferredTag,
       ts,
       useCallbacks ? createExpressionTransformCallbacks(ts) : undefined,
+      { registeredComponents },
     );
 
 

@@ -243,4 +243,33 @@ describe("format - comments in elements", () => {
     });
     expect(result).toContain("someVar");
   });
+
+  it("should format jsx comments in children", async () => {
+    const code = "jsx`<div>{/* hello */}text</div>`";
+    const result = await prettier.format(code, {
+      parser: "babel",
+      plugins: plugins,
+    });
+    expect(result).toContain("{/* hello */}");
+    expect(result).not.toContain("<!--");
+  });
+
+  it("should normalize legacy html comments to jsx comments", async () => {
+    const code = "jsx`<div><!-- hello --></div>`";
+    const result = await prettier.format(code, {
+      parser: "babel",
+      plugins: plugins,
+    });
+    expect(result).toContain("{/* hello */}");
+    expect(result).not.toContain("<!--");
+  });
+
+  it("should keep jsx comments with expressions", async () => {
+    const code = "jsx`<div>{/* value: ${someVar} */}</div>`";
+    const result = await prettier.format(code, {
+      parser: "babel",
+      plugins: plugins,
+    });
+    expect(result).toContain("{/* value: ${someVar} */}");
+  });
 });

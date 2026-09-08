@@ -121,6 +121,8 @@ export interface ExpressionToken {
 
 export const TAG_COMMENT_START = "<!--";
 export const TAG_COMMENT_END = "-->";
+export const JSX_COMMENT_START = "{/*";
+export const JSX_COMMENT_END = "*/}";
 export const LINE_COMMENT_START = "//";
 export const LINE_COMMENT_END = "\n";
 export const BLOCK_COMMENT_START = "/*";
@@ -130,6 +132,7 @@ export interface CommentStartToken extends BaseToken {
   type: typeof COMMENT_START_TOKEN;
   value:
     | typeof TAG_COMMENT_START
+    | typeof JSX_COMMENT_START
     | typeof LINE_COMMENT_START
     | typeof BLOCK_COMMENT_START;
 }
@@ -138,6 +141,7 @@ export interface CommentEndToken extends BaseToken {
   type: typeof COMMENT_END_TOKEN;
   value:
     | typeof TAG_COMMENT_END
+    | typeof JSX_COMMENT_END
     | typeof LINE_COMMENT_END
     | typeof BLOCK_COMMENT_END;
 }
@@ -169,6 +173,7 @@ const STATE_TAG = 2;
 const STATE_TAG_COMMENT = 3;
 const STATE_LINE_COMMENT = 4;
 const STATE_BLOCK_COMMENT = 5;
+const STATE_JSX_COMMENT = 6;
 
 export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
   const tokens: Token[] = [];
@@ -184,7 +189,17 @@ export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
       switch (state) {
         case STATE_TEXT: {
           const nextTag = str.indexOf("<", cursor);
-          if (nextTag === -1) {
+          const nextJsxComment = str.indexOf("{/*", cursor);
+          let next = nextTag;
+          let isJsxComment = false;
+          if (
+            nextJsxComment !== -1 &&
+            (nextTag === -1 || nextJsxComment < nextTag)
+          ) {
+            next = nextJsxComment;
+            isJsxComment = true;
+          }
+          if (next === -1) {
             if (cursor < len) {
               tokens.push({
                 type: TEXT_TOKEN,
@@ -196,39 +211,49 @@ export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
             }
             cursor = len;
           } else {
-            if (nextTag > cursor) {
+            if (next > cursor) {
               tokens.push({
                 type: TEXT_TOKEN,
-                value: str.slice(cursor, nextTag),
+                value: str.slice(cursor, next),
                 segment: i,
                 start: cursor,
-                end: nextTag,
+                end: next,
               });
             }
 
-            if (
-              str[nextTag + 1] === "!" &&
-              str[nextTag + 2] === "-" &&
-              str[nextTag + 3] === "-"
+            if (isJsxComment) {
+              tokens.push({
+                type: COMMENT_START_TOKEN,
+                value: JSX_COMMENT_START,
+                segment: i,
+                start: next,
+                end: next + 3,
+              });
+              state = STATE_JSX_COMMENT;
+              cursor = next + 3;
+            } else if (
+              str[next + 1] === "!" &&
+              str[next + 2] === "-" &&
+              str[next + 3] === "-"
             ) {
               state = STATE_TAG_COMMENT;
-              cursor = nextTag + 4;
+              cursor = next + 4;
               tokens.push({
                 type: COMMENT_START_TOKEN,
                 value: TAG_COMMENT_START,
                 segment: i,
-                start: nextTag,
-                end: nextTag + 4,
+                start: next,
+                end: next + 4,
               });
             } else {
               tokens.push({
                 type: OPEN_TAG_TOKEN,
                 segment: i,
-                start: nextTag,
-                end: nextTag + 1,
+                start: next,
+                end: next + 1,
               });
               state = STATE_TAG_START;
-              cursor = nextTag + 1;
+              cursor = next + 1;
             }
           }
           break;
@@ -446,13 +471,17 @@ export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
         }
         case STATE_TAG_COMMENT:
         case STATE_LINE_COMMENT:
-        case STATE_BLOCK_COMMENT: {
+        case STATE_BLOCK_COMMENT:
+        case STATE_JSX_COMMENT: {
           const isTagComment = state === STATE_TAG_COMMENT;
+          const isJsxComment = state === STATE_JSX_COMMENT;
           const endTokenValue = isTagComment
             ? "-->"
-            : state === STATE_LINE_COMMENT
-              ? "\n"
-              : "*/";
+            : isJsxComment
+              ? "*/}"
+              : state === STATE_LINE_COMMENT
+                ? "\n"
+                : "*/";
           const endComment = str.indexOf(endTokenValue, cursor);
 
           if (endComment === -1) {
@@ -465,7 +494,12 @@ export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
             });
             cursor = len;
           } else {
-            state = isTagComment ? STATE_TEXT : (returnToTagStart ? STATE_TAG_START : STATE_TAG);
+            state =
+              isTagComment || isJsxComment
+                ? STATE_TEXT
+                : returnToTagStart
+                  ? STATE_TAG_START
+                  : STATE_TAG;
             returnToTagStart = false;
             const value = str.slice(cursor, endComment);
             if (value) {

@@ -604,6 +604,42 @@ describe("parse - comments", () => {
     expect(comment.children[0].value).toBe(" hello ");
   });
 
+  it("should parse jsx comments with text content", () => {
+    const result = parseTemplate`<div>{/* hello */}</div>`;
+
+    const div = result.children[0] as any;
+    expect(div.children).toHaveLength(1);
+
+    const comment = div.children[0] as any;
+    expect(comment.type).toBe(COMMENT_NODE);
+    expect(comment.tokens.start.value).toBe("{/*");
+    expect(comment.tokens.end.value).toBe("*/}");
+    expect(comment.children).toHaveLength(1);
+    expect(comment.children[0].type).toBe(TEXT_NODE);
+    expect(comment.children[0].value).toBe(" hello ");
+  });
+
+  it("should parse jsx comment with expression", () => {
+    const result = parseTemplate`<div>{/* value: ${"expr"} */}</div>`;
+
+    const comment = (result.children[0] as any).children[0] as any;
+    expect(comment.type).toBe(COMMENT_NODE);
+    expect(comment.children).toHaveLength(3);
+    expect(comment.children[0].type).toBe(TEXT_NODE);
+    expect(comment.children[0].value).toBe(" value: ");
+    expect(comment.children[1].type).toBe(EXPRESSION_NODE);
+    expect(comment.children[1].value).toBe(0);
+  });
+
+  it("should parse root-level jsx comment", () => {
+    const result = parseTemplate`{/* root comment */}<div/>`;
+
+    expect(result.children).toHaveLength(2);
+    expect(result.children[0].type).toBe(COMMENT_NODE);
+    expect((result.children[0] as CommentNode).children[0].type).toBe(TEXT_NODE);
+    expect(result.children[1].type).toBe(ELEMENT_NODE);
+  });
+
   it("should parse comment with expression", () => {
     const result = parseTemplate`<div><!-- value: ${"expr"} --></div>`;
 

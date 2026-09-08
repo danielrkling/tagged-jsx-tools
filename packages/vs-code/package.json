@@ -53,6 +53,14 @@
           "type": "boolean",
           "default": true,
           "description": "Enable expression transform callbacks (wraps expressions with () => for tagged templates)"
+        },
+        "tagged-jsx.registeredComponents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Component names to emit as literal tag names in tagged templates instead of ${} expressions. The runtime resolves these from its component registry. Names are matched exactly (e.g. \"Form.Field\", \"Button\")."
         }
       }
     },
@@ -148,7 +156,6 @@
       }
     ]
   },
-  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.70.0",
@@ -156,7 +163,9 @@
     "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.25.9",
     "typescript": "^5.0.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   },
   "scripts": {
     "build:web": "esbuild ./src/extension.web.ts --bundle --format=cjs --outfile=./dist/web/extension.js --external:vscode --platform=browser --minify",

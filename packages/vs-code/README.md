@@ -117,6 +117,7 @@ The Smart Toggle command detects tagged templates via regex and decides which di
 | `tagged-jsx.customTags` | `string[]` | `["html", "jsx"]` | Tags to treat as JSX tagged templates. Affects highlighting, formatting, and conversion. |
 | `tagged-jsx.preferredTag` | `string` | `"html"` | Tag to use when converting from JSX to tagged template (choices: `html`, `jsx`). |
 | `tagged-jsx.useCallbacks` | `boolean` | `true` | Enable expression transform callbacks. Wraps expressions with `() =>` for SolidJS-style reactive frameworks. |
+| `tagged-jsx.registeredComponents` | `string[]` | `[]` | Component names emitted as literal tag names in tagged templates instead of `${}` expressions. The runtime resolves these from its component registry. |
 
 ### `customTags`
 
@@ -134,6 +135,26 @@ When enabled (`true`, default), the converter applies the `() =>` wrap/unwrap pa
 - **Tagged → JSX:** Zero-parameter arrow functions with expression bodies are unwrapped by removing `() => `. Arrow functions with parameters or block bodies, event handlers, and primitives pass through verbatim.
 
 This ensures idempotent round-tripping for SolidJS reactive expression semantics.
+
+### `registeredComponents`
+
+Component names that are emitted as **literal tag names** in tagged templates instead of `${...}` expressions. The runtime resolves them from its component registry.
+
+**Default:** `[]` (all components are emitted as `${...}` expressions)
+
+Example: `["Form.Field", "Button"]` converts `<Form.Field name="email" />` to:
+
+```
+html`<Form.Field name="email" />`
+```
+
+instead of:
+
+```
+html`<${Form.Field} name="email" />`
+```
+
+Names are matched exactly against the full tag text (`"Form"` does not cover `"Form.Field"`).
 
 ## Grammar system
 

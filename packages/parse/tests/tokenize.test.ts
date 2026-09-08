@@ -882,3 +882,38 @@ describe("unicode names", () => {
     expect(tokens.some((t) => t.type === UNEXPECTED_CHARACTER_TOKEN)).toBe(true);
   });
 });
+
+describe("jsx comments", () => {
+  it("should tokenize jsx comments in text", () => {
+    const tokens = tokenizeTemplate`<div>{/* hello */}</div>`;
+
+    expect(tokens).toEqual([
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: TAG_NAME_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 4, end: 5 },
+      { type: COMMENT_START_TOKEN, value: "{/*", segment: 0, start: 5, end: 8 },
+      { type: TEXT_TOKEN, value: " hello ", segment: 0, start: 8, end: 15 },
+      { type: COMMENT_END_TOKEN, value: "*/}", segment: 0, start: 15, end: 18 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 18, end: 19 },
+      { type: SLASH_TOKEN, segment: 0, start: 19, end: 20 },
+      { type: TAG_NAME_TOKEN, value: "div", segment: 0, start: 20, end: 23 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 23, end: 24 },
+    ]);
+  });
+
+  it("should prefer an earlier jsx comment over a tag", () => {
+    const tokens = tokenizeTemplate`{/* a */}<div/>`;
+
+    expect(tokens[0].type).toBe(COMMENT_START_TOKEN);
+    expect((tokens[0] as any).value).toBe("{/*");
+  });
+
+  it("should tokenize jsx comments containing braces and slashes", () => {
+    const tokens = tokenizeTemplate`{/* a {b} /c */}x`;
+
+    expect((tokens[0] as any).value).toBe("{/*");
+    expect((tokens[1] as TextToken).value).toBe(" a {b} /c ");
+    expect((tokens[2] as any).value).toBe("*/}");
+    expect((tokens[3] as TextToken).value).toBe("x");
+  });
+});

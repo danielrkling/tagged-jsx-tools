@@ -111,11 +111,64 @@ describe("one-way transforms", () => {
     expect(result.trim()).toBe(expected.trim());
   });
 
-  it("unicode tag names round-trip", () => {
+  it("unicode tag names: literal round-trip (lexer)", () => {
+    // Hand-written templates with literal unicode tag names still work.
+    const tagged = "jsx`<日本語 name=\"テスト\" />`";
+    expect(toJsx(tagged).code).toBe("<日本語 name=\"テスト\" />");
+  });
+
+  it("unicode tag names: component per TS isIntrinsicJsxName", () => {
+    // TS resolves unicode tag names from scope (not lowercase ASCII, no dash),
+    // so they must be emitted as component references.
     const jsx = "<日本語 name=\"テスト\" />";
     const result = toTagged(jsx).code;
-    expect(result.trim()).toBe("jsx`<日本語 name=\"テスト\" />`");
+    expect(result.trim()).toBe("jsx`<${日本語} name=\"テスト\" />`");
     expect(toJsx(result).code).toBe(jsx);
+  });
+
+  it("underscore and dollar-prefixed tags are components", () => {
+    expect(toTagged("<_Foo />").code.trim()).toBe("jsx`<${_Foo} />`");
+    expect(toTagged("<$Foo />").code.trim()).toBe("jsx`<${$Foo} />`");
+  });
+
+  it("dash-containing tags stay intrinsic like TS", () => {
+    expect(toTagged("<My-Comp />").code.trim()).toBe("jsx`<My-Comp />`");
+  });
+
+  it("escapes attribute values that would break the template", () => {
+    expect(toTagged("<div title=\"a`b\" />").code.trim())
+      .toBe("jsx`<div title=\"a\\`b\" />`");
+    expect(toTagged("<div title=\"cost ${x}\" />").code.trim())
+      .toBe("jsx`<div title=\"cost \\${x}\" />`");
+    expect(toTagged("<div title=\"a\\nb\" />").code.trim())
+      .toBe("jsx`<div title=\"a\\\\nb\" />`");
+  });
+
+  it("picks the attribute quote absent from the value", () => {
+    const result = toTagged("<img alt='say \"hi\"' />").code;
+    expect(result.trim()).toBe("jsx`<img alt='say \"hi\"' />`");
+    expect(toJsx(result).code).toBe("<img alt='say \"hi\"' />");
+  });
+
+  it("escapes text children that would break the template", () => {
+    expect(toTagged("<div>a`b</div>").code.trim()).toBe("jsx`<div>a\\`b</div>`");
+    expect(toTagged("<div>a\\nb</div>").code.trim()).toBe("jsx`<div>a\\\\nb</div>`");
+  });
+
+  it("round-trips escaped template-breaking characters", () => {
+    const cases = [
+      "<div title=\"a`b\" />",
+      "<div title=\"cost ${x}\" />",
+      "<div title=\"a\\nb\" />",
+      "<div>a`b</div>",
+      "<div>a\\nb</div>",
+      "<img alt='say \"hi\"' />",
+      "<img alt=\"John's car\" />",
+    ];
+    for (const jsx of cases) {
+      const tagged = toTagged(jsx).code;
+      expect(toJsx(tagged).code, `round trip of ${jsx}`).toBe(jsx);
+    }
   });
 
   it("namespaced attributes stay literal", () => {
@@ -142,26 +195,106 @@ describe("one-way transforms", () => {
     const result = toTagged(jsx).code;
     expect(result.trim()).toBe(expected.trim());
   });
+
+  it("empty expression attributes are dropped (intentional normalization)", () => {
+    // attr={} is a placeholder/stub idiom; dropping it matches the {} children
+    // normalization and is semantically near-equivalent to attr={undefined}.
+    expect(toTagged("<div attr={} other=\"x\" />").code.trim())
+      .toBe("jsx`<div other=\"x\" />`");
+  });
+});
+
+describe("registered components", () => {
+  const toTaggedRegistered = createTaggedTransformer("jsx", ts, undefined, {
+    registeredComponents: ["Form.Field", "Button"],
+  });
+
+  it("emits registered components as literal tag names", () => {
+    expect(toTaggedRegistered("<Form.Field name=\"email\" />").code.trim())
+      .toBe("jsx`<Form.Field name=\"email\" />`");
+  });
+
+  it("keeps closing tags literal for registered components", () => {
+    const result = toTaggedRegistered("<Form.Field>\n  <input />\n</Form.Field>").code;
+    expect(result.trim()).toBe("jsx`<Form.Field>\n  <input />\n</Form.Field>`");
+    expect(toJsx(result).code).toBe("<Form.Field>\n  <input />\n</Form.Field>");
+  });
+
+  it("registers plain component names", () => {
+    expect(toTaggedRegistered("<Button label=\"ok\" />").code.trim())
+      .toBe("jsx`<Button label=\"ok\" />`");
+  });
+
+  it("still wraps non-registered components", () => {
+    expect(toTaggedRegistered("<Other.Field />").code.trim())
+      .toBe("jsx`<${Other.Field} />`");
+  });
+
+  it("matches registered names exactly", () => {
+    expect(toTaggedRegistered("<Form.Input />").code.trim())
+      .toBe("jsx`<${Form.Input} />`");
+  });
+
+  it("leaves intrinsic elements unaffected", () => {
+    expect(toTaggedRegistered("<div class=\"x\" />").code.trim())
+      .toBe("jsx`<div class=\"x\" />`");
+  });
 });
 
 describe("comments", () => {
-  it("should convert HTML comment to JSX comment", () => {
+  it("should convert legacy HTML comments to JSX comments (toJsx)", () => {
     const tagged = "jsx`<div><!-- hello world --></div>`";
     const result = toJsx(tagged).code;
     expect(result).toBe("<div>{/* hello world */}</div>");
   });
 
-  it("should convert JSX comment back to HTML comment", () => {
+  it("should emit JSX comments as-is (toTagged)", () => {
     const jsx = "<div>{/* hello world */}</div>";
     const result = toTagged(jsx).code;
-    expect(result).toBe("jsx`<div><!-- hello world --></div>`");
+    expect(result).toBe("jsx`<div>{/* hello world */}</div>`");
   });
 
-  it("should round-trip HTML comments", () => {
-    const original = "jsx`<div><!-- comment --></div>`";
+  it("should round-trip JSX comments", () => {
+    const original = "jsx`<div>{/* comment */}</div>`";
     const jsx = toJsx(original).code;
+    expect(jsx).toBe("<div>{/* comment */}</div>");
     const back = toTagged(jsx).code;
     expect(back).toBe(original);
+  });
+
+  it("should normalize legacy HTML comments to JSX comments on round-trip", () => {
+    const legacy = "jsx`<div><!-- comment --></div>`";
+    const jsx = toJsx(legacy).code;
+    expect(jsx).toBe("<div>{/* comment */}</div>");
+    const back = toTagged(jsx).code;
+    expect(back).toBe("jsx`<div>{/* comment */}</div>`");
+  });
+
+  it("should round-trip empty JSX comments", () => {
+    const original = "jsx`<div>{/**/}</div>`";
+    const jsx = toJsx(original).code;
+    expect(jsx).toBe("<div>{/**/}</div>");
+    const back = toTagged(jsx).code;
+    expect(back).toBe(original);
+  });
+
+  it("should degrade interpolations inside comments to inert text (idempotent)", () => {
+    const original = "jsx`<div>{/* value: ${value} */}</div>`";
+    const jsx = toJsx(original).code;
+    // Comments are inert in JSX, so interpolations inside them become
+    // literal comment text. This matches the legacy <!-- --> behavior.
+    expect(jsx).toBe("<div>{/* value: {value} */}</div>");
+    const back = toTagged(jsx).code;
+    expect(back).toBe("jsx`<div>{/* value: {value} */}</div>`");
+    // Stable on subsequent round trips.
+    expect(toJsx(back).code).toBe("<div>{/* value: {value} */}</div>");
+  });
+
+  it("should escape template-breaking characters in comments", () => {
+    const jsx = "<div>{/* a `b ${x} c */}</div>";
+    const tagged = toTagged(jsx).code;
+    expect(tagged).toBe("jsx`<div>{/* a \\`b \\${x} c */}</div>`");
+    expect(toJsx(tagged).code).toBe(jsx);
   });
 
   it("should preserve line comments as-is in toJsx", () => {

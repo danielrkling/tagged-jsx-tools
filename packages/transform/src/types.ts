@@ -22,6 +22,15 @@ export interface TransformError {
   message: string;
 }
 
+export interface TransformOptions {
+  /**
+   * Component names emitted as literal tag names in tagged templates instead
+   * of ${...} expressions. The runtime resolves these from its component
+   * registry. Names are matched exactly (e.g. "Form.Field", "Button").
+   */
+  registeredComponents?: string[];
+}
+
 export interface TransformerCallbacks {
   toTagged?: (opts: ToTaggedCallbackOptions) => string;
   toJSX?: (opts: ToJsxCallbackOptions) => string;

@@ -306,16 +306,25 @@ export const printJsx = (
       return printElement(child);
     }
     if (child.type === "COMMENT") {
-      const parts: any[] = ["<!--"];
+      // Comments are normalized to JSX comment syntax, including legacy
+      // <!-- --> comments parsed from older templates.
+      const contentParts: any[] = [];
       for (const c of child.children) {
         if (c.type === "TEXT") {
-          parts.push(c.value.trim());
+          const text = c.value.trim();
+          if (text) contentParts.push(text);
         } else if (c.type === "EXPRESSION") {
           const printed = printExpression(c.value as number);
-          parts.push(["${", printed, "}"]);
+          contentParts.push(["${", printed, "}"]);
         }
       }
-      parts.push("-->");
+      if (contentParts.length === 0) return ["{/**/}"];
+      const parts: any[] = ["{/* "];
+      for (let i = 0; i < contentParts.length; i++) {
+        if (i > 0) parts.push(" ");
+        parts.push(contentParts[i]);
+      }
+      parts.push(" */}");
       return parts;
     }
     // Meaningful text should never reach here, but be safe.

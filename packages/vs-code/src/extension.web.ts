@@ -94,6 +94,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const useCallbacks = config.get<boolean>("useCallbacks", false);
     const tags = config.get<string[]>("customTags", ["jsx", "html"]);
     const preferredTag = config.get<string>("preferredTag", "jsx");
+    const registeredComponents = config.get<string[]>("registeredComponents", []);
 
     const toJSXTransform = createJsxTransformer(
       tags,
@@ -105,6 +106,7 @@ export async function activate(context: vscode.ExtensionContext) {
       preferredTag,
       ts,
       useCallbacks ? createExpressionTransformCallbacks(ts) : undefined,
+      { registeredComponents },
     );
 
     return { toJSXTransform, toTaggedTransform };
