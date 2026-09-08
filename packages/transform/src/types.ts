@@ -22,13 +22,24 @@ export interface TransformError {
   message: string;
 }
 
-export interface TransformOptions {
+export interface CreateTaggedTransformerOptions {
+  /** The tag name that wraps converted templates, e.g. `html`. */
+  tag: string;
+  ts: typeof ts;
+  callbacks?: TransformerCallbacks;
   /**
    * Component names emitted as literal tag names in tagged templates instead
    * of ${...} expressions. The runtime resolves these from its component
    * registry. Names are matched exactly (e.g. "Form.Field", "Button").
    */
   registeredComponents?: string[];
+}
+
+export interface CreateJsxTransformerOptions {
+  /** Tag names whose tagged templates are converted to JSX, e.g. `["html", "jsx"]`. */
+  tags: string[];
+  ts: typeof ts;
+  callbacks?: TransformerCallbacks;
 }
 
 export interface TransformerCallbacks {

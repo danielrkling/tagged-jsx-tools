@@ -1,15 +1,19 @@
 import type * as tsModule from "typescript";
 import { computeMappings } from "./mappings";
 import type { MappingResult } from "./mappings";
-import type { TransformerCallbacks, ToTaggedCallbackOptions, TransformOptions } from "./types";
+import type {
+  TransformerCallbacks,
+  ToTaggedCallbackOptions,
+  CreateTaggedTransformerOptions,
+} from "./types";
 
-export function createTaggedTransformer(
-  tag: string,
-  ts: typeof tsModule,
-  globalCallbacks?: TransformerCallbacks,
-  options?: TransformOptions
-) {
-  const registeredComponents = options?.registeredComponents ?? [];
+export function createTaggedTransformer(options: CreateTaggedTransformerOptions) {
+  const {
+    tag,
+    ts,
+    callbacks: globalCallbacks,
+    registeredComponents = [],
+  } = options;
   function toTagged(code: string, callbacks?: TransformerCallbacks): string {
     const activeCallbacks = callbacks || globalCallbacks;
     let result = code;

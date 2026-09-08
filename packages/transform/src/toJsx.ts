@@ -18,13 +18,14 @@ import {
 import { computeMappings } from "./mappings";
 import type { MappingResult } from "./mappings";
 import type * as tsModule from "typescript";
-import type { TransformerCallbacks, TransformError } from "./types";
+import type {
+  TransformerCallbacks,
+  TransformError,
+  CreateJsxTransformerOptions,
+} from "./types";
 
-export function createJsxTransformer(
-  tags: string[],
-  ts: typeof tsModule,
-  callbacks?: TransformerCallbacks
-) {
+export function createJsxTransformer(options: CreateJsxTransformerOptions) {
+  const { tags, ts, callbacks } = options;
   function findFirstTaggedTemplate(
     node: tsModule.Node,
   ): tsModule.TaggedTemplateExpression | undefined {

@@ -13,7 +13,7 @@ const jsxCodeWithTypes = `declare namespace JSX {
 }
 ` + code;
 
-const { toJsxWithMappings } = createJsxTransformer(["html", "jsx"], ts);
+const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
 const result = toJsxWithMappings(jsxCodeWithTypes);
 console.log("=== Output ===");
 console.log(result.code);

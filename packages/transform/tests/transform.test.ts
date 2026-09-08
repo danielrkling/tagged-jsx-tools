@@ -14,10 +14,10 @@ function readTagged(file: string): string {
 }
 
 const ts = require("typescript") as typeof import("typescript");
-const toJsx = createJsxTransformer(["jsx"], ts);
-const toTagged = createTaggedTransformer("jsx", ts);
-const taggedTransform = createTaggedTransformer("html", ts);
-const taggedJSXTransform = createJsxTransformer(["html"], ts);
+const toJsx = createJsxTransformer({ tags: ["jsx"], ts });
+const toTagged = createTaggedTransformer({ tag: "jsx", ts });
+const taggedTransform = createTaggedTransformer({ tag: "html", ts });
+const taggedJSXTransform = createJsxTransformer({ tags: ["html"], ts });
 
 describe("transforms", () => {
   describe("tagged to jsx", () => {
@@ -205,7 +205,9 @@ describe("one-way transforms", () => {
 });
 
 describe("registered components", () => {
-  const toTaggedRegistered = createTaggedTransformer("jsx", ts, undefined, {
+  const toTaggedRegistered = createTaggedTransformer({
+    tag: "jsx",
+    ts,
     registeredComponents: ["Form.Field", "Button"],
   });
 
@@ -363,11 +365,15 @@ describe("transform callbacks", () => {
   });
 
   it("should transform expressions with toJSX callback", () => {
-    const customToJsx = createJsxTransformer(["jsx"], ts, {
-      toJSX: ({ expression, sourceCode }) => {
-        const text = sourceCode.slice(expression.getStart(), expression.getEnd());
-        return text.replace(/^\(\)\s*=>\s*/, "");
-      }
+    const customToJsx = createJsxTransformer({
+      tags: ["jsx"],
+      ts,
+      callbacks: {
+        toJSX: ({ expression, sourceCode }) => {
+          const text = sourceCode.slice(expression.getStart(), expression.getEnd());
+          return text.replace(/^\(\)\s*=>\s*/, "");
+        }
+      },
     });
 
     const tagged = "jsx`<div value=${() => v()} />`";

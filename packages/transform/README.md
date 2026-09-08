@@ -37,14 +37,14 @@ import { createJsxTransformer, createTaggedTransformer } from "@tagged-jsx/trans
 import ts from "typescript";
 
 // Tagged template -> JSX
-const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
 const jsxResult = toJsxWithMappings(`
   const el = html\`<div class=\${active}>hello</div>\`;
 `);
 // Result: { code: `const el = <div class={active}>hello</div>`, mappings: {...}, errors: [] }
 
 // JSX -> Tagged template
-const toTaggedWithMappings = createTaggedTransformer("html", ts);
+const toTaggedWithMappings = createTaggedTransformer({ tag: "html", ts });
 const taggedResult = toTaggedWithMappings(`
   const el = <div class={active}>hello</div>;
 `);
@@ -71,8 +71,8 @@ import ts from "typescript";
 
 const callbacks = createExpressionTransformCallbacks(ts);
 
-const toJSX = createJsxTransformer(["html", "jsx"], ts, callbacks);
-const toTagged = createTaggedTransformer("html", ts, callbacks);
+const toJSX = createJsxTransformer({ tags: ["html", "jsx"], ts, callbacks });
+const toTagged = createTaggedTransformer({ tag: "html", ts, callbacks });
 
 // JSX (eager):
 //   <div class={signal()}>
@@ -90,7 +90,7 @@ const toTagged = createTaggedTransformer("html", ts, callbacks);
 ### With source mappings (for diagnostic translation)
 
 ```typescript
-const toJsxWithMappings = createJsxTransformer(["jsx", "html"], ts);
+const toJsxWithMappings = createJsxTransformer({ tags: ["jsx", "html"], ts });
 const { code, mappings } = toJsxWithMappings(sourceCode);
 
 // Map a position in the tagged source to the equivalent position in JSX
@@ -102,11 +102,11 @@ const taggedPos = getTaggedPosition(jsxPos, mappings.reverseMappings, sourceCode
 
 ## API
 
-### `createJsxTransformer(tags, ts, callbacks?)`
+### `createJsxTransformer(options)`
 
 Creates a transformer that converts tagged template literals to JSX syntax.
 
-**Parameters:**
+**Options:**
 - `tags` — Array of tag names to recognize (e.g., `["jsx", "html"]`)
 - `ts` — A TypeScript module instance
 - `callbacks?` — Optional `TransformerCallbacks` for custom expression handling
@@ -120,14 +120,15 @@ A single function that accepts source code and returns an object with:
 
 Processing is iterative (up to 100 passes per file), handling nested templates.
 
-### `createTaggedTransformer(tag, ts, callbacks?)`
+### `createTaggedTransformer(options)`
 
 Creates a transformer that converts JSX syntax to tagged template literals.
 
-**Parameters:**
+**Options:**
 - `tag` — The tag name to use in output templates (e.g., `"html"`)
 - `ts` — A TypeScript module instance
 - `callbacks?` — Optional `TransformerCallbacks` for custom expression handling
+- `registeredComponents?` — Component names emitted as literal tag names instead of `${...}` expressions (matched exactly, e.g. `["Form.Field", "Button"]`); the runtime resolves these from its component registry
 
 **Returns:** `(code: string, callbacks?: TransformerCallbacks) => { code: string; mappings: MappingResult; errors: TransformError[] }`
 
@@ -136,7 +137,7 @@ A single function that accepts source code (and optional per-call callbacks over
 - `mappings` — Character-level offset mappings
 - `errors` — Array of transform errors
 
-Component names (starting with uppercase) are wrapped in expressions: `<MyComponent />` → `` html`<${MyComponent} />` ``. This follows SolidJS conventions where the `html` tag expects component names as interpolations.
+Component tag names follow TypeScript's JSX semantics: intrinsic elements (starting with a lowercase ASCII letter, or containing a dash) stay literal, everything else is wrapped as an expression — `<MyComponent />` → `` html`<${MyComponent} />` ``, unless the name is listed in `registeredComponents`. Namespaced tags (`<svg:use />`) always stay literal.
 
 ### `getJsxPosition(taggedPosition, mappings, jsxCodeLength)`
 
@@ -219,13 +220,14 @@ The built-in callbacks handle the `() =>` wrap/unwrap pattern for **idempotent r
 1. **Skip props:** `ref` and `on*` (event handlers) are returned verbatim
 2. **Primitives:** String/number literals, `true`, `false`, `null`, `undefined` are returned verbatim
 3. **Arrow functions:** Returned verbatim (already carry parameter context)
-4. **Everything else:** Wrapped in `() => <expr>` to convert eager evaluation to lazy thunks
+4. **Everything else:** Wrapped in `() => <expr>` to convert eager evaluation to lazy thunks. Object literals are additionally parenthesized — `() => ({a: 1})` — since a bare `{` would parse as the arrow's block body.
 
 **`toJSX` callback logic:**
 1. **Skip props:** Same `ref`/`on*` skip logic
 2. **Primitives:** Returned verbatim
 3. **Arrow functions with parameters or block body:** Returned verbatim (cannot safely unwrap)
-4. **Zero-parameter arrow functions with expression body:** `() => ` prefix is stripped (reversing the wrapping)
+4. **Parenthesized object literal bodies:** `() => ({a: 1})` unwraps to the bare `{a: 1}`
+5. **Zero-parameter arrow functions with expression body:** `() => ` prefix is stripped (reversing the wrapping)
 
 This produces a clean round-trip suitable for SolidJS reactive expressions:
 ```
@@ -277,11 +279,12 @@ The diff-based approach uses `diffChars` to compute fine-grained character diffe
 
 ## Comment handling
 
-HTML-style comments in tagged templates (`<!-- -->`) are converted to JSX comments (`{/* */}`) when going tagged → JSX, and back to HTML-style comments when going JSX → tagged:
+JSX-style comments (`{/* */}`) are the canonical comment syntax in tagged templates and pass through verbatim in both directions. Legacy HTML-style comments (`<!-- -->`) are still recognized and converted to `{/* */}` when going tagged → JSX:
 
 ```
-Tagged:        html`<div><!-- comment --></div>`
-JSX:           <div>{/* comment */}</div>
+Tagged (canonical):  html`<div>{/* comment */}</div>`
+Tagged (legacy):     html`<div><!-- comment --></div>`
+JSX:                 <div>{/* comment */}</div>
 ```
 
 Line comments (`//`) and block comments (`/* */`) within template content pass through verbatim in both directions — no wrapping is applied.

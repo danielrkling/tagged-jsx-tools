@@ -5,12 +5,12 @@ import { createJsxTransformer, getTaggedPosition, getJsxPosition } from "@tagged
 describe("ts-plugin diagnostics", () => {
   describe("transformer creation", () => {
     it("should create transformer with jsx tag", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       expect(toJsxWithMappings).toBeDefined();
     });
 
     it("should accept custom tags", () => {
-      const toJsxWithMappings = createJsxTransformer(["html", "custom"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "custom"], ts });
       const result = toJsxWithMappings("const x = html`<div></div>`");
       expect(result.code).toContain("<div></div>");
     });
@@ -18,13 +18,13 @@ describe("ts-plugin diagnostics", () => {
 
   describe("basic transformation", () => {
     it("should convert basic template to JSX", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const x = jsx`<div>hello</div>`");
       expect(result.code).toContain("<div>hello</div>");
     });
 
     it("should return mappings structure", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const x = jsx`<div></div>`");
       expect(result.mappings).toBeDefined();
       expect(result.mappings.mappings).toBeDefined();
@@ -32,26 +32,26 @@ describe("ts-plugin diagnostics", () => {
     });
 
     it("should handle nested elements", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const x = jsx`<div><span>hi</span></div>`");
       expect(result.code).toContain("<span>hi</span>");
     });
 
     it("should handle self-closing tags", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const x = jsx`<img />");
       expect(result.code).toContain("<img />");
     });
 
     it("should handle attributes", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings('const x = jsx`<div class="foo"></div>`');
       expect(result.code).toContain('class="foo"');
     });
 
     it("should handle expression attributes", () => {
       const name = "test";
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings(`const x = jsx\`<div class=\${name}></div>\``);
       expect(result.code).toContain("class={name}");
     });
@@ -65,7 +65,7 @@ describe("ts-plugin diagnostics", () => {
 
     it("should map positions when given valid inputs", () => {
       const code = "const x = jsx`<div>hello</div>`;";
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const { mappings } = toJsxWithMappings(code);
       
       const pos = getTaggedPosition(5, mappings.reverseMappings, code.length);
@@ -74,7 +74,7 @@ describe("ts-plugin diagnostics", () => {
 
     it("should return undefined for out of bounds position", () => {
       const code = "const x = jsx`<div></div>`;";
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const { mappings } = toJsxWithMappings(code);
       
       const pos = getTaggedPosition(10000, mappings.reverseMappings, code.length);
@@ -82,7 +82,7 @@ describe("ts-plugin diagnostics", () => {
     });
 
     it("should return undefined for negative position", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const { code, mappings } = toJsxWithMappings("const x = jsx`<div></div>`");
       
       const pos = getTaggedPosition(-1, mappings.reverseMappings, code.length);
@@ -92,14 +92,14 @@ describe("ts-plugin diagnostics", () => {
 
   describe("non-template code", () => {
     it("should pass through non-template code unchanged", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const x = 1;");
       expect(result.code).toBe("const x = 1;");
       expect(result.mappings.mappings.length).toBeGreaterThan(0);
     });
 
     it("should handle tagged call without jsx tag", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const x = notjsx`<div></div>`");
       expect(result.code).toBe("const x = notjsx`<div></div>`");
     });
@@ -107,7 +107,7 @@ describe("ts-plugin diagnostics", () => {
 
   describe("multiple templates in one file", () => {
     it("should handle multiple templates", () => {
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const result = toJsxWithMappings("const a = jsx`<div></div>`; const b = jsx`<span></span>`");
       expect(result.code).toContain("<div></div>");
       expect(result.code).toContain("<span></span>");
@@ -132,7 +132,7 @@ describe("ts-plugin diagnostics", () => {
       const code = `import { Show } from "solid-js";
 const a = jsx\`<div>hello</div>\`;`;
 
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       expect(jsxCode).not.toBe(code);
@@ -143,7 +143,7 @@ const a = jsx\`<div>hello</div>\`;`;
 
     it("should correctly round-trip positions through mappings", () => {
       const code = "const x = jsx`<div>hello</div>`;";
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const originalDivPos = code.indexOf("<div>");
@@ -156,7 +156,7 @@ const a = jsx\`<div>hello</div>\`;`;
 
     it("should remap JSX diagnostic positions back to original positions", () => {
       const code = "const x = jsx`<div></div>`;";
-      const toJsxWithMappings = createJsxTransformer(["jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const host = createTestHost(jsxCode);
@@ -175,7 +175,7 @@ const a = jsx\`<div>hello</div>\`;`;
     it("should return completions at attribute value inside template", () => {
       const code = `const x = html\`<div class="hello"></div>\`;`;
 
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const classPos = code.indexOf(`"hello"`);
@@ -190,7 +190,7 @@ const a = jsx\`<div>hello</div>\`;`;
 
     it("should return completions at element name inside template", () => {
       const code = "const x = html`<div></div>`;";
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const pos = code.indexOf("<div") + 1;
@@ -205,7 +205,7 @@ const a = jsx\`<div>hello</div>\`;`;
 
     it("should map positions correctly with template expressions", () => {
       const code = `const x = html\`<div class=\${name}>\${value}</div>\`;`;
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const namePos = code.indexOf("name");
@@ -225,7 +225,7 @@ const a = jsx\`<div>hello</div>\`;`;
 
     it("should return rename info for lowercase div (canRename: false)", () => {
       const code = "const x = html`<div>hello</div>`;";
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const divPos = code.indexOf("<div>") + 1;
@@ -244,7 +244,7 @@ const a = jsx\`<div>hello</div>\`;`;
     it("should return rename info for a component (canRename: true)", () => {
       const code = `import { Show } from "solid-js";
 const x = html\`<Show when=\${true}>hello</Show>\`;`;
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const showPos = code.indexOf("<Show") + 1;
@@ -312,7 +312,7 @@ const x = <button o type="button" />;`;
 }
 const x = html\`<button type="button"></button>\`;`;
 
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(originalCode);
 
       const typePrefixPos = originalCode.indexOf("button ") + "button ".length;
@@ -338,7 +338,7 @@ const x = html\`<button type="button"></button>\`;`;
 }
 const x = html\`<button type="button"></button>\`;`;
 
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(originalCode);
 
       const position = originalCode.indexOf("button ") + "button ".length;
@@ -539,7 +539,7 @@ const x = <button o type="button" />;`;
 
     it("should provide completions through the full proxy pipeline (simulated)", () => {
       const code = `const x = html\`<div class="hello"></div>\`;`;
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const attributePos = code.indexOf(`"hello"`);
@@ -570,7 +570,7 @@ const x = <button o type="button" />;`;
     it("should provide quick info through the full proxy pipeline (simulated)", () => {
       const code = `import { Show } from "solid-js";
 const x = html\`<Show when=\${true}>hello</Show>\`;`;
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const showPos = code.indexOf("<Show") + 1;
@@ -586,7 +586,7 @@ const x = html\`<Show when=\${true}>hello</Show>\`;`;
     it("should provide definition through the full proxy pipeline (simulated)", () => {
       const code = `import { Show } from "solid-js";
 const x = html\`<Show when=\${true}>hello</Show>\`;`;
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const showPos = code.indexOf("<Show") + 1;
@@ -603,7 +603,7 @@ const x = html\`<Show when=\${true}>hello</Show>\`;`;
     it("should return rename locations for a component inside template", () => {
       const code = `import { Show } from "solid-js";
 const x = html\`<Show when=\${true}>hello</Show>\`;`;
-      const toJsxWithMappings = createJsxTransformer(["html", "jsx"], ts);
+      const toJsxWithMappings = createJsxTransformer({ tags: ["html", "jsx"], ts });
       const { code: jsxCode, mappings } = toJsxWithMappings(code);
 
       const showPos = code.indexOf("<Show") + 1;

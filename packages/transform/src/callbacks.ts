@@ -35,6 +35,11 @@ export function createExpressionTransformCallbacks(_ts: typeof ts): TransformerC
 
       // Wrap all non-primitive, non-arrow-function expressions
       const text = sourceCode.slice(expression.getStart(), expression.getEnd());
+      // An object literal would be parsed as the arrow's block body
+      // (e.g. `() => {class: "x"}`), so parenthesize it.
+      if (ts.isObjectLiteralExpression(expression)) {
+        return `() => (${text})`;
+      }
       return `() => ${text}`;
     },
 
@@ -56,6 +61,14 @@ export function createExpressionTransformCallbacks(_ts: typeof ts): TransformerC
       const body = expression.body;
       if (ts.isBlock(body)) {
         return sourceCode.slice(expression.getStart(), expression.getEnd());
+      }
+
+      // Restore bare object literals: () => ({a: 1}) -> {a: 1}
+      if (
+        ts.isParenthesizedExpression(body) &&
+        ts.isObjectLiteralExpression(body.expression)
+      ) {
+        return body.expression.getText();
       }
 
       // Unwrap - remove the () => prefix

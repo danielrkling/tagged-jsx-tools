@@ -131,8 +131,8 @@ Example: `["html", "jsx", "css", "styled"]` would also highlight content inside 
 
 When enabled (`true`, default), the converter applies the `() =>` wrap/unwrap pattern for SolidJS-style reactive expressions:
 
-- **JSX → Tagged:** Non-primitive expressions (signal calls, variables, ternary operators) are wrapped in `() =>` to convert eager evaluation to lazy thunks. Event handlers (`on*`) and `ref` props are skipped. Arrow functions and primitives pass through verbatim.
-- **Tagged → JSX:** Zero-parameter arrow functions with expression bodies are unwrapped by removing `() => `. Arrow functions with parameters or block bodies, event handlers, and primitives pass through verbatim.
+- **JSX → Tagged:** Non-primitive expressions (signal calls, variables, ternary operators) are wrapped in `() =>` to convert eager evaluation to lazy thunks. Object literals are parenthesized (`() => ({a: 1})`) so they don't parse as the arrow's block body. Event handlers (`on*`) and `ref` props are skipped. Arrow functions and primitives pass through verbatim.
+- **Tagged → JSX:** Zero-parameter arrow functions with expression bodies are unwrapped by removing `() => ` (parenthesized object-literal bodies are restored to bare object literals). Arrow functions with parameters or block bodies, event handlers, and primitives pass through verbatim.
 
 This ensures idempotent round-tripping for SolidJS reactive expression semantics.
 

@@ -305,7 +305,7 @@ function init(modules: { typescript: typeof tsModule }) {
     const tags: string[] = explicitTags ?? vscodeTags ?? ["html", "jsx"];
     const useCallbacks: boolean = info.config?.useCallbacks ?? (vscodeConfig["tagged-jsx.useCallbacks"] ?? (vscodeConfig as any)["tagged-jsx"]?.useCallbacks) ?? true;
     const callbacks = useCallbacks ? createExpressionTransformCallbacks(ts) : undefined;
-    const toJsxWithMappings = createJsxTransformer(tags, ts, callbacks);
+    const toJsxWithMappings = createJsxTransformer({ tags, ts, callbacks });
     console.error("[tagged-jsx] Plugin initialized. tags:", tags, "useCallbacks:", useCallbacks, "projectRoot:", projectRoot);
     console.error("[tagged-jsx] Plugin config:", JSON.stringify(info.config));
 

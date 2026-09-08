@@ -10,8 +10,8 @@ const __dirname = path.dirname(__filename);
 
 const fixturesDir = path.join(__dirname, "fixtures");
 
-const toJsx = createJsxTransformer(["jsx"], ts);
-const toTagged = createTaggedTransformer("jsx", ts);
+const toJsx = createJsxTransformer({ tags: ["jsx"], ts });
+const toTagged = createTaggedTransformer({ tag: "jsx", ts });
 
 describe("sld-to-jsx", () => {
   const inputDir = path.join(fixturesDir, "sld-to-jsx", "input");

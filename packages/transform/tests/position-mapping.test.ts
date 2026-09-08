@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { createJsxTransformer, createTaggedTransformer, getJsxPosition, getTaggedPosition, computeMappings } from "../src/index";
 
 const ts = require("typescript") as typeof import("typescript");
-const toJsx = createJsxTransformer(["jsx"], ts);
-const toTagged = createTaggedTransformer("jsx", ts);
+const toJsx = createJsxTransformer({ tags: ["jsx"], ts });
+const toTagged = createTaggedTransformer({ tag: "jsx", ts });
 
 describe("position mapping", () => {
   describe("toJsx result structure", () => {
